@@ -247,18 +247,9 @@ int main(int argc, char *argv[])
     Nx = 200;
     Ny = 200;
 
-    if (argc != 3)
-    {
-        printf("Error: two command line arguments required: 1) path to the array to be averaged; 2) path to the output file location.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Loading float accumulation array from: %s\n",argv[1]);
-    printf("Writing output raster to: %s\n", argv[2]);
-
     // Open input files
-    fr0 = fopen(argv[1], "rb"); fileerrorcheck(fr0);
-    fr1 = fopen("./data/input/DEM.flt", "rb"); fileerrorcheck(fr1);
+    fr0 = fopen("./data/tmp/input_var.flt", "rb"); fileerrorcheck(fr0);  // input raster to be averaged
+    fr1 = fopen("./data/tmp/input_dem.flt", "rb"); fileerrorcheck(fr1);  // input topography raster
 
     // Array memory allocation
     allocatearrays();
@@ -297,7 +288,7 @@ int main(int argc, char *argv[])
     normalizeupstreamsum();
 
     // Write accumulated raster to file
-    fw0 = fopen(argv[2],"wb"); fileerrorcheck(fw0);
+    fw0 = fopen("./data/tmp/output.flt","wb"); fileerrorcheck(fw0);
     for (i=1;i<=Ny;i++)
         (void) fwrite(&acc[i][1],sizeof(float),Nx,fw0);
     fclose(fw0);
