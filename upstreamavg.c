@@ -14,6 +14,7 @@
     ./upstreamavg.exe ./data/input/slope.flt ./data/output/avgslope.flt
 */
 
+#include<getopt.h>
 #include<malloc.h>
 #include<math.h>
 #include<stdio.h>
@@ -24,6 +25,52 @@
 int *topovecind,*iup,*idown,*jup,*jdown;
 float **arr,**topo,**acc,**area,*topovec,dx,nanval;
 long Nx,Ny;
+
+void readcmdlineargs(int argc, char *argv[])
+{
+    // Parse command line arguments
+    // This uses the getopt library; see https://azrael.digipen.edu/~mmead/www/Courses/CS180/getopt.html for a thorough tutorial
+    int opt;
+
+    // Initialize variables; we will check that dx, Nx, Ny were all specified at the end (they must each be greater than 0)
+    // NoData value is also a required arg, but it isn't obvious what it should be compared against since it can be any real number
+    dx = -1.0;
+    Nx = -1;
+    Ny = -1;
+    nanval = -9999;  // in case nanval isn't provided, guess the common no data value
+
+    while ((opt = getopt(argc, argv, ":x:y:d:v:")) != -1)
+    {
+        switch(opt)
+        {
+            case 'x':
+                Nx = atoi(optarg);  // size of x dimension
+                break;
+            case 'y':
+                Ny = atoi(optarg);  // size of y dimension
+                break;
+            case 'd':
+                dx = atof(optarg);  // grid spacing
+                break;
+            case 'v':
+                nanval = atof(optarg);  // NoData value
+                break;
+            case '?':
+                printf("Unknown option: %c\n", optopt);
+                break;
+            case ':':
+                printf("Missing arg for %c\n", optopt);
+                break;
+        }
+    }
+
+    // Check that mandatory parameters were set
+    if ((Nx<=0)||(Ny<=0)||(dx<=0.0))
+    {
+        printf("-x, -y, -d, -v flags are all mandatory!\n");
+        exit(EXIT_FAILURE);
+    }
+}
 
 void setupgridneighbors()
 {
@@ -242,11 +289,8 @@ int main(int argc, char *argv[])
     FILE *fr0,*fr1,*fw0;
     int i,j;
 
-    // Set parameters of the input grid
-    dx = 1.0;
-    Nx = 200;
-    Ny = 200;
-    nanval = -9999;
+    // Set parameters of the input grid from command line arguments
+    readcmdlineargs(argc, argv);
 
     // Open input files
     fr0 = fopen("./data/tmp/input_var.flt", "rb"); fileerrorcheck(fr0);  // input raster to be averaged
