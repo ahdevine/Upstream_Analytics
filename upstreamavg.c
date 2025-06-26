@@ -1,17 +1,22 @@
 /*
  computes upstream average of input array, normalized by drainage area
 
- expects input DEM at ./data/input/DEM.flt
- expects input contributing area raster at ./data/input/contribarea.flt
+ this file designed to be run from within a Python wrapper script
+ 
+ expects input array to be averaged at ./data/tmp/input_var.flt
+ expects input DEM at ./data/tmp/input_dem.flt
+ output averaged array will be written to ./data/tmp/output.flt
 
- two command-line arguments:
-    first is the path to the input raster to be averaged
-    second is the path to write the output averaged raster
+ four required command line options with arguments (in any order). Lucky Hills example:
+    -x 200  (grid size in x dimension)
+    -y 200  (grid size in y dimension)
+    -d 1.0  (grid spacing)
+    -v -9999  (NoData value)
 
  compile with:
-    gcc -o upstreamavg.exe upstreamavg.c utilities.c -lm
+    gcc -o upstreamavg.exe upstreamavg.c utilities.c -lm -Wall
  run with, e.g.:
-    ./upstreamavg.exe ./data/input/slope.flt ./data/output/avgslope.flt
+    ./upstreamavg.exe -x 200 -y 200 -d 1.0 -v -9999
 */
 
 #include<getopt.h>
