@@ -22,7 +22,7 @@
 #include"utilities.h"
 
 int *topovecind,*iup,*idown,*jup,*jdown;
-float **arr,**topo,**acc,**area,*topovec,dx;
+float **arr,**topo,**acc,**area,*topovec,dx,nanval;
 long Nx,Ny;
 
 void setupgridneighbors()
@@ -77,7 +77,7 @@ void fillinpitsandflats(int i, int j)
     float min,fillincrement;
 
     fillincrement=0.01;
-    if ((i>1)&&(j>1)&&(i<Ny)&&(j<Nx))
+    if ((i>1)&&(j>1)&&(i<Ny)&&(j<Nx)&&topo[i][j]!=nanval)
     {
         min=topo[i][j];
         if (topo[iup[i]][j]<min) min=topo[iup[i]][j];
@@ -222,7 +222,7 @@ void flowrouting()
         if (j==0) j=Nx;
         i=(topovecind[t])/Nx+1;
         if (j==Nx) i--;
-        if ((i>1)&&(i<Ny)&&(j>1)&&(j<Nx))  // check for NAN value
+        if ((i>1)&&(i<Ny)&&(j>1)&&(j<Nx)&&(topo[i][j]!=nanval))
             flowaccumulated8(i,j);
     }
 }
@@ -233,7 +233,7 @@ void normalizeupstreamsum()
 
     for (i=1;i<=Ny;i++)
         for (j=1;j<=Nx;j++)
-            if (topo[i][j]>0 && area[i][j]>0.1)
+            if ((topo[i][j]!=nanval) && (area[i][j]>0.0))  // check on area probably not necessary but leaving it just to be sure...
                 acc[i][j] /= area[i][j];
 }
 
@@ -246,6 +246,7 @@ int main(int argc, char *argv[])
     dx = 1.0;
     Nx = 200;
     Ny = 200;
+    nanval = -9999;
 
     // Open input files
     fr0 = fopen("./data/tmp/input_var.flt", "rb"); fileerrorcheck(fr0);  // input raster to be averaged
@@ -273,9 +274,17 @@ int main(int argc, char *argv[])
     for (i=1;i<=Ny;i++)
         for (j=1;j<=Nx;j++)
         {
-            acc[i][j] = dx*dx*arr[i][j];
-	        topovec[(i-1)*Nx+j]=topo[i][j];
-            area[i][j]=dx*dx;  // contributing area (m^2)
+            topovec[(i-1)*Nx+j]=topo[i][j];
+            if (topo[i][j]!=nanval)
+            {
+                acc[i][j]=dx*dx*arr[i][j];
+                area[i][j]=dx*dx;  // contributing area (m^2)
+            }
+            else
+            {
+                acc[i][j]=nanval;
+                area[i][j]=nanval;
+            }
         }
 
     // Sort the index table topovecind according to rank order of topography in topovec, lowest to highest
