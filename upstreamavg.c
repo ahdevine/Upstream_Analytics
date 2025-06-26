@@ -169,21 +169,45 @@ void flowaccumulated8(int i, int j)
     }
 
     if (flowdir==1)
+    {
         acc[iup[i]][jdown[j]]+=acc[i][j];
+        area[iup[i]][jdown[j]]+=area[i][j];
+    }
     if (flowdir==2)
+    {
         acc[iup[i]][j]+=acc[i][j];
+        area[iup[i]][j]+=area[i][j];
+    }
     if (flowdir==4)
+    {
         acc[iup[i]][jup[j]]+=acc[i][j];
+        area[iup[i]][jup[j]]+=area[i][j];
+    }
     if (flowdir==8)
+    {
         acc[i][jup[j]]+=acc[i][j];
+        area[i][jup[j]]+=area[i][j];
+    }
     if (flowdir==16)
+    {
         acc[idown[i]][jup[j]]+=acc[i][j];
+        area[idown[i]][jup[j]]+=area[i][j];
+    }
     if (flowdir==32)
+    {
         acc[idown[i]][j]+=acc[i][j];
+        area[idown[i]][j]+=area[i][j];
+    }
     if (flowdir==64)
+    {
         acc[idown[i]][jdown[j]]+=acc[i][j];
+        area[idown[i]][jdown[j]]+=area[i][j];
+    }
     if (flowdir==128)
+    {
         acc[i][jdown[j]]+=acc[i][j];
+        area[i][jdown[j]]+=area[i][j];
+    }
 }
 
 void flowrouting()
@@ -215,7 +239,7 @@ void normalizeupstreamsum()
 
 int main(int argc, char *argv[])
 {
-    FILE *fr0,*fr1,*fr2,*fw0;
+    FILE *fr0,*fr1,*fw0;
     int i,j;
 
     // Set parameters of the input grid
@@ -235,7 +259,6 @@ int main(int argc, char *argv[])
     // Open input files
     fr0 = fopen(argv[1], "rb"); fileerrorcheck(fr0);
     fr1 = fopen("./data/input/DEM.flt", "rb"); fileerrorcheck(fr1);
-    fr2 = fopen("./data/input/contribarea.flt", "rb"); fileerrorcheck(fr2);
 
     // Array memory allocation
     allocatearrays();
@@ -247,9 +270,8 @@ int main(int argc, char *argv[])
         // Load  data from input files one row at a time; array pointers point to the first column of the i_th row
 		(void) fread(&arr[i][1],sizeof(float),Nx,fr0);  // input to be averaged
         (void) fread(&topo[i][1],sizeof(float),Nx,fr1);  // digital elevation model (m)
-        (void) fread(&area[i][1],sizeof(float),Nx,fr2);  // contributing area (m^2)
     }
-    fclose(fr0);fclose(fr1);fclose(fr2);
+    fclose(fr0);fclose(fr1);
     
     // Hydrocorrection
     for (i=1;i<=Ny;i++)
@@ -262,6 +284,7 @@ int main(int argc, char *argv[])
         {
             acc[i][j] = dx*dx*arr[i][j];
 	        topovec[(i-1)*Nx+j]=topo[i][j];
+            area[i][j]=dx*dx;  // contributing area (m^2)
         }
 
     // Sort the index table topovecind according to rank order of topography in topovec, lowest to highest
