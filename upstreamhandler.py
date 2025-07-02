@@ -10,13 +10,15 @@ deminfile = './data/input_DEM.tif'
 varinfile = './data/input_var.tif'
 outfile = './data/upstreamavg.tif'
 TMP_DIR = './data/tmp'
+iot_dem = './data/io_test/Plainfield_DEM.tif'
+iot_var = './data/io_test/Plainfield_Slope.tif'
+
 DEM_FLT_INFILE = './data/tmp/input_dem.flt'
 VAR_FLT_INFILE = './data/tmp/input_var.flt'
-UPSTRMAVG_FLT_OUTFILE = './data/tmp/upstreamavg.flt'
-executable = './tmp/upstreamhandler.exe'
+UPSTRMAVG_FLT_OUTFILE = './data/tmp/output.flt'
+EXECUTABLE = './data/tmp/upstreamavg.exe'
 tif_tags = ['metadata', 'dx', 'Nx', 'Ny', 'nodata']
 source_info = {}
-
 
 def tiff_get_tags(tiff_inf):
     """
@@ -24,12 +26,11 @@ def tiff_get_tags(tiff_inf):
     """
     raster = gdal.Open(tiff_inf)
     metadata = raster.GetMetadata()
-    source_info.append(metadata)
     gt = raster.GetGeoTransform()
     dx = gt[1]
     dy = gt[5]
-    Nx = raster.RasterYSize
-    Ny = raster.RasterXSize
+    Ny = raster.RasterYSize
+    Nx = raster.RasterXSize
     nodata = raster.GetRasterBand(1).GetNoDataValue()
     return [metadata, dx, Nx, Ny, nodata]
  
@@ -38,20 +39,20 @@ def tiff_to_flt(tiff_inf, flt_outf):
     Convert a tiff file to a flt file.
     """
     raster = gdal.Open(tiff_inf)
+    if raster is None:
+        raise FileNotFoundError(f"Could not open TIFF file: {tiff_inf}")
     b1 = raster.GetRasterBand(1)
     arr = b1.ReadAsArray()
     with open(flt_outf, 'wb') as f:
         f.write(arr.astype(np.float32).tobytes())
-    return arr
 
-def invoke_upstream(dir, deminf, varinf, exe):
+def invoke_upstream(x, y, d, v, exe):
     """
-    Invoke the upstream handler executable.
+    Invoke upstreamavg.c with the given parameters.
     """
-    subprocess.run(['gcc', '-o', exe, 'drainagearea.c', '-lm' '-Wall'])
-    subprocess.run([exe])
-    subprocess.run(['gcc', '-o', exe, 'upstreamavg.c', '-lm', 'Wall'])
-    subprocess.run([exe])
+    subprocess.run(['gcc', '-o', exe, 'upstreamavg.c', 'utilities.c', '-lm', '-Wall'])
+    subprocess.run([exe, '-x', str(x), '-y', str(y), '-d', str(d), '-v', str(v)])
+    print('Upstream averaging executed successfully.')
 
 def flt_to_tiff(flt_inf, tiff_outf, Nx, Ny):
     """
@@ -63,7 +64,6 @@ def flt_to_tiff(flt_inf, tiff_outf, Nx, Ny):
     to_gtiff = gdal.GetDriverByName('GTiff')
     out_raster = to_gtiff.Create(tiff_outf, Nx, Ny, 1, gdal.GDT_Float32)
     out_raster.GetRasterBand(1).WriteArray(arr)
-    out_raster.GetRasterBand(1).SetNoDataValue()
     out_raster.FlushCache()
     out_raster = None
     return arr
@@ -88,20 +88,29 @@ def tmp_destroy():
 
 if __name__ == "__main__":
 
-    for k, v in zip(tif_tags, tiff_get_tags(deminfile)):
+    os.makedirs(TMP_DIR, exist_ok=True)
+
+    '''
+    deminfile = './data/' + input("Enter DEM filename with extension: ").strip()
+    varinfile = '.data/' + input("Enter variable filename with extension: ").strip()
+
+    if os.path.isfile(deminfile) and os.path.isfile(varinfile):
+        print(f"Files found:\nDEM file: {deminfile}\nVariable file: {varinfile}")
+    else:
+        print("Error: One or both files do not exist. Please check the paths.")
+    '''
+    for k, v in zip(tif_tags, tiff_get_tags(iot_dem)):
         source_info[k] = v    
 
     print(f"Tags for {deminfile}: {source_info}")
-
-    os.makedirs(TMP_DIR, exist_ok=True)
-    print(f"Converting {deminfile} to {DEM_FLT_INFILE}")
-
-    tiff_to_flt(deminfile, DEM_FLT_INFILE)
-    tiff_to_flt(varinfile, VAR_FLT_INFILE)
+    
+    tiff_to_flt(iot_dem, DEM_FLT_INFILE)
+    tiff_to_flt(iot_var, VAR_FLT_INFILE)
 
     print(f"Invoking upstream handler with {DEM_FLT_INFILE} and {VAR_FLT_INFILE}")
-    invoke_upstream(TMP_DIR, DEM_FLT_INFILE, VAR_FLT_INFILE, executable)
+    invoke_upstream(source_info['Nx'], source_info['Ny'], source_info['dx'], source_info['nodata'], EXECUTABLE)
 
+    ##outfile = input('Enter path for output file (default: ./data/upstreamavg.tif): ').strip() or outfile
     flt_to_tiff(UPSTRMAVG_FLT_OUTFILE, outfile, source_info['Nx'], source_info['Ny'])
 
     tmp_destroy()
