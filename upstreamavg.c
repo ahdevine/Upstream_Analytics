@@ -13,6 +13,9 @@
     -d 1.0  (grid spacing)
     -v -9999  (NoData value)
 
+ one optional command line option, no argument:
+    -s (provide this flag to write the upstream sum to output instead of the default area-normalized average)
+
  compile with:
     gcc -o upstreamavg.exe upstreamavg.c utilities.c -lm -Wall
  run with, e.g.:
@@ -27,7 +30,7 @@
 #include<string.h>
 #include"utilities.h"
 
-int *topovecind,*iup,*idown,*jup,*jdown;
+int *topovecind,*iup,*idown,*jup,*jdown,flg_avg;
 float **arr,**topo,**acc,**area,*topovec,dx,nanval;
 long Nx,Ny;
 
@@ -43,8 +46,9 @@ void readcmdlineargs(int argc, char *argv[])
     Nx = -1;
     Ny = -1;
     nanval = -9999;  // in case nanval isn't provided, guess the common no data value
+    flg_avg = 1;  // flag determines whether the upstream avg is calculated (1, default) or the sum (0)
 
-    while ((opt = getopt(argc, argv, ":x:y:d:v:")) != -1)
+    while ((opt = getopt(argc, argv, ":x:y:d:v:s")) != -1)
     {
         switch(opt)
         {
@@ -59,6 +63,9 @@ void readcmdlineargs(int argc, char *argv[])
                 break;
             case 'v':
                 nanval = atof(optarg);  // NoData value
+                break;
+            case 's':  // calculate the sum instead of upstream avg
+                flg_avg = 0;
                 break;
             case '?':
                 printf("Unknown option: %c\n", optopt);
@@ -343,7 +350,8 @@ int main(int argc, char *argv[])
     flowrouting();
 
     // Normalize by drainage area
-    normalizeupstreamsum();
+    if (flg_avg)
+        normalizeupstreamsum();
 
     // Write accumulated raster to file
     fw0 = fopen("./data/tmp/output.flt","wb"); fileerrorcheck(fw0);
@@ -354,5 +362,5 @@ int main(int argc, char *argv[])
     // Free array allocations
     freearrays();
 
-    return 0;
+    return EXIT_SUCCESS;
 }
