@@ -6,12 +6,10 @@ import numpy as np
 from osgeo import gdal
 import os
 
-deminfile = './data/input_DEM.tif'
+deminfile = './data/input_DEM.tif' 
 varinfile = './data/input_var.tif'
 outfile = './data/upstreamavg.tif'
 TMP_DIR = './data/tmp'
-iot_dem = './data/io_test/Plainfield_DEM.tif'
-iot_var = './data/io_test/Plainfield_Slope.tif'
 DEM_FLT_INFILE = './data/tmp/input_dem.flt'
 VAR_FLT_INFILE = './data/tmp/input_var.flt'
 UPSTRMAVG_FLT_OUTFILE = './data/tmp/output.flt'
