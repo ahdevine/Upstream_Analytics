@@ -17,11 +17,21 @@ VAR_FLT_INFILE = './data/tmp/input_var.flt'
 UPSTRMAVG_FLT_OUTFILE = './data/tmp/output.flt'
 EXECUTABLE = './data/tmp/upstreamavg.exe'
 tif_tags = ['metadata', 'gt', 'proj', 'dx', 'Nx', 'Ny', 'nodata']
+flags = []
 source_info = {}
 
 def tiff_get_tags(tiff_inf):
     """
-    Get tags from a tiff file.
+    Get tags from a tiff file, return list in order of tif_tags.
+
+    Parameters:
+    -----------
+    tiff_inf : str
+        Input tiff file path.
+    -----------
+    Returns:
+    list
+        List of tags in order of tif_tags.
     """
     raster = gdal.Open(tiff_inf)
     metadata = raster.GetMetadata()
@@ -36,7 +46,7 @@ def tiff_get_tags(tiff_inf):
  
 def tiff_to_flt(tiff_inf, flt_outf, blocksize=1024):
     """
-    Convert a tiff file to a flt file.
+    Convert a tiff file to a flt file in blocks to handle large files. 
 
     Parameters:
     -----------
@@ -45,7 +55,8 @@ def tiff_to_flt(tiff_inf, flt_outf, blocksize=1024):
     flt_outf : str
         Output flt file path.
     blocksize : int
-        Number of rows per blocks for reading the tiff file.
+        Number of rows per blocks for reading the tiff file, arbitrary, default is 1024.
+    
     """
     # Open the tiff file, raise error if it cannot be opened
     raster = gdal.Open(tiff_inf, gdal.GA_ReadOnly)
@@ -53,13 +64,13 @@ def tiff_to_flt(tiff_inf, flt_outf, blocksize=1024):
         raise FileNotFoundError(f"Could not open TIFF file: {tiff_inf}")
     
     b1 = raster.GetRasterBand(1)
-    cols = raster.RasterXSize
-    rows = raster.RasterYSize
+    Nx = raster.RasterXSize
+    Ny = raster.RasterYSize
 
     with open(flt_outf, 'wb') as f:
-        for i in range(0, rows, blocksize):
+        for i in range(0, Ny, blocksize):
             num_rows = min(blocksize, rows - i)
-            arr = b1.ReadAsArray(0, i, cols, num_rows)
+            arr = b1.ReadAsArray(0, i, Nx, num_rows)
             if arr is None:
                 raise ValueError(f"Could not read data from TIFF file: {tiff_inf}")
             f.write(arr.astype(np.float32).tobytes())
@@ -71,12 +82,15 @@ def tiff_to_flt(tiff_inf, flt_outf, blocksize=1024):
     gdal.ErrorReset()
 
 
-def invoke_upstream(x, y, d, v, exe):
+def invoke_upstream(x, y, d, v, exe, flags):
     """
     Invoke upstreamavg.c with the given parameters.
     """
     subprocess.run(['gcc', '-o', exe, 'upstreamavg.c', 'utilities.c', '-lm', '-Wall'])
-    subprocess.run([exe, '-x', str(x), '-y', str(y), '-d', str(d), '-v', str(v)])
+    if flags:
+        subprocess.run([exe, '-x', str(x), '-y', str(y), '-d', str(d), '-v', str(v), str(flags)])
+    else:
+        subprocess.run([exe, '-x', str(x), '-y', str(y), '-d', str(d), '-v', str(v)])
     print('Upstream averaging executed successfully.')
 
 def flt_to_tiff(flt_inf, tiff_outf, gt, proj, Nx, Ny, nodata, blocksize=1024):
@@ -89,6 +103,17 @@ def flt_to_tiff(flt_inf, tiff_outf, gt, proj, Nx, Ny, nodata, blocksize=1024):
         Input flt file path.
     tiff_outf : str
         Output tiff file path.
+    gt : tuple
+        GeoTransform tuple.
+    proj : str
+        Projection string.
+    Nx, Ny : int
+        Number of columns and rows.
+    nodata : float
+        NoData value.
+    blocksize : int
+        Number of rows per blocks for writing the tiff file, arbitrary, default is 1024.
+    -----------
     """
 
     to_gtiff = gdal.GetDriverByName('GTiff')
@@ -129,7 +154,7 @@ def tmp_destroy():
             except Exception as e:
                 print(f'Failed to delete {file_path}. Reason: {e}')
         os.rmdir(TMP_DIR)
-    return print(f'Temporary directory {TMP_DIR} removed.')
+    print(f'Temporary directory {TMP_DIR} removed.')
     
 
 if __name__ == "__main__":
@@ -141,6 +166,11 @@ if __name__ == "__main__":
     deminfile = './data/' + input("Enter DEM filename with extension: ").strip()
     varinfile = './data/' + input("Enter variable filename with extension: ").strip()
     outfile = './data/' + (input("Enter output filename with extension (default: upstreamavg.tif): ").strip() or 'upstreamavg.tif')
+    
+    # Get user input for flags, store in flags list
+    flags_input = input("Enter any flags (-s for sum, ) separated by spaces (default: none): ").strip()
+    if flags_input: flags = flags_input.split()
+    print(f"Flags set: {flags}")
 
     # Check if input files exist, exit if not
     if os.path.isfile(deminfile) and os.path.isfile(varinfile):
@@ -161,7 +191,7 @@ if __name__ == "__main__":
 
     # Invoke upstream averaging
     print(f"Invoking upstream handler with {DEM_FLT_INFILE} and {VAR_FLT_INFILE}")
-    invoke_upstream(source_info['Nx'], source_info['Ny'], source_info['dx'], source_info['nodata'], EXECUTABLE)
+    invoke_upstream(source_info['Nx'], source_info['Ny'], source_info['dx'], source_info['nodata'], EXECUTABLE, flags)
 
     # Convert output flt file to tiff file
     outfile = (input('Enter path for output file (default: ./data/upstreamavg.tif): ').strip() or outfile)
