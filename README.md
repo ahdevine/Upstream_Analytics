@@ -1,2 +1,3 @@
-# Upstream_Averaging
-Alexander Prescott, Aidan Devine, Beverley Wemple Upstream Averaging
+# Upstream_Analytics
+
+Alexander Prescott, Aidan Devine, Liam Muskin, Beverley Wemple Upstream Averaging
